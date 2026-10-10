@@ -1,0 +1,1671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Argus — Voice Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,340;9..144,480;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F4EFE4; --bg-elev:#EAE1CE; --panel-border:#D8CBAE;
+    --text:#211C14; --text-dim:#6B6252;
+    --accent:#9C5A2A; --accent-glow:#C97F3F; --ring:#B08968; --danger:#A6432B;
+    --font-display:'Fraunces', Georgia, 'Times New Roman', serif;
+    --font-body:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg); color:var(--text); font-family:var(--font-body); min-height:100vh; display:flex; justify-content:center;}
+  .app{width:100%; max-width:640px; padding:clamp(20px,5vw,48px) clamp(16px,5vw,28px) 40px; display:flex; flex-direction:column; align-items:center;}
+  .top-row{ width:100%; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+  .wordmark{ font-family:var(--font-display); font-weight:600; font-size:clamp(26px,6vw,34px); margin:0; }
+  .tagline{ margin:2px 0 0; font-size:13px; color:var(--text-dim); font-style:italic; font-family:var(--font-display); }
+  .theme-toggle{ background:none; border:1px solid var(--panel-border); color:var(--text-dim); border-radius:999px; padding:6px 12px; font-size:12px; cursor:pointer; }
+  .eye-wrap{ margin:clamp(20px,5vw,36px) 0 14px; width:min(60vw,220px); display:flex; justify-content:center; }
+  .status{ font-size:15px; color:var(--text-dim); min-height:20px; text-align:center; }
+  .interim{ min-height:22px; font-family:var(--font-display); font-size:17px; text-align:center; margin-top:4px; color:var(--accent); }
+  .hint{ margin-top:10px; padding:10px 14px; border-radius:10px; background:var(--bg-elev); border:1px solid var(--panel-border); font-size:13px; color:var(--text-dim); text-align:center; max-width:100%; display:none; }
+  .hint.show{ display:block; }
+  .hint.error{ color:var(--danger); border-color:var(--danger); }
+  .controls{ width:100%; margin-top:20px; display:flex; flex-direction:column; gap:10px; }
+  .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .mic-btn{ flex:0 0 auto; width:56px; height:56px; border-radius:50%; border:1px solid var(--panel-border); background:var(--bg-elev); color:var(--text); cursor:pointer; display:flex;align-items:center;justify-content:center; }
+  .mic-btn:hover{ border-color:var(--ring); }
+  .mic-btn[data-active="true"]{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .mic-btn svg{ width:22px; height:22px; }
+  input[type="text"]{ flex:1; min-width:120px; padding:14px 16px; border-radius:14px; border:1px solid var(--panel-border); background:var(--bg-elev); color:var(--text); font-family:var(--font-body); font-size:15px; outline:none; }
+  input[type="text"]:focus{ border-color:var(--accent); }
+  .send-btn, .mute-btn{ border:1px solid var(--panel-border); background:var(--bg-elev); color:var(--text); border-radius:14px; padding:0 16px; height:48px; font-size:14px; cursor:pointer; }
+  .send-btn:hover, .mute-btn:hover{ border-color:var(--ring); }
+  .mute-btn[data-muted="true"]{ color:var(--danger); border-color:var(--danger); }
+  .mute-btn[data-wake="true"]{ color:var(--accent); border-color:var(--accent); }
+  .log{ width:100%; margin-top:22px; border-top:1px solid var(--panel-border); padding-top:16px; max-height:320px; overflow-y:auto; }
+  .log-entry{ display:flex; gap:10px; padding:8px 0; font-size:14.5px; line-height:1.5; }
+  .log-entry .who{ flex:0 0 56px; color:var(--text-dim); font-size:12px; padding-top:2px; }
+  .log-entry.argus .who{ color:var(--accent); }
+  .log-entry a{ color:var(--accent); }
+  .log-empty{ color:var(--text-dim); font-size:13.5px; font-style:italic; }
+  .footer-note{ margin-top:22px; font-size:12px; color:var(--text-dim); text-align:center; line-height:1.6; }
+
+  /* Argus modern voice-assistant appearance */
+  :root{ --bg:#0b1020; --bg-elev:#141b2e; --panel-border:#2a3550; --text:#edf2ff; --text-dim:#98a6c3; --accent:#8b7cff; --accent-glow:#b0a6ff; --ring:#6c63c7; --danger:#ff777f; --font-display:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; --font-body:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
+  html,body{min-height:100%;background:#0b1020}
+  body{color:var(--text); background:radial-gradient(ellipse at 50% 0%,rgba(100,91,210,.20),transparent 45%),linear-gradient(145deg,#0b1020 0%,#0c1325 55%,#101326 100%); font-family:var(--font-body);}
+  .app{max-width:700px; padding:30px clamp(16px,4vw,34px) 36px;}
+  .top-row{align-items:center; padding:16px 18px; border:1px solid rgba(142,155,200,.17); border-radius:20px; background:rgba(20,27,46,.78); box-shadow:0 12px 35px rgba(0,0,0,.16);}
+  .wordmark{font-size:25px; font-weight:750; letter-spacing:.16em; line-height:1.1;}
+  .tagline{margin-top:7px; font-size:12px; font-style:normal; letter-spacing:.04em; text-transform:none; color:#9aa8c8;}
+  .theme-toggle{border:1px solid #35415f; border-radius:999px; padding:9px 14px; color:#d8dcf3; background:#171f35; font-size:12px; transition:background .2s,border-color .2s,transform .2s;}
+  .theme-toggle:hover{background:#222c49;border-color:#8176ec;transform:translateY(-1px)}
+  .eye-wrap{width:150px; height:150px; margin:34px 0 18px; filter:none;}
+  .voice-orb{position:relative; width:108px; height:108px; border:1px solid rgba(167,157,255,.65); background:radial-gradient(circle at 32% 25%,#8d83ff 0%,#655bd2 22%,#292b67 57%,#151b3b 100%); box-shadow:0 0 0 9px rgba(139,124,255,.08),0 0 0 20px rgba(139,124,255,.035),0 12px 50px rgba(106,91,220,.30); transition:transform .25s ease,box-shadow .25s ease,filter .25s ease; display:flex; align-items:center; justify-content:center; border-radius:50%;}
+  .voice-orb:before,.voice-orb:after{content:""; position:absolute; inset:-10px; border:1px solid rgba(164,155,255,.20); border-radius:50%; pointer-events:none;}
+  .voice-orb:after{inset:-19px;border-color:rgba(164,155,255,.10)}
+  .voice-orb svg{width:34px;height:34px;stroke:#fff}
+  .app[data-state="listening"] .voice-orb{transform:scale(1.06); box-shadow:0 0 0 12px rgba(139,124,255,.13),0 0 0 25px rgba(139,124,255,.06),0 0 58px rgba(139,124,255,.55);}
+  .app[data-state="speaking"] .voice-orb{box-shadow:0 0 0 12px rgba(176,166,255,.15),0 0 0 25px rgba(176,166,255,.06),0 0 64px rgba(176,166,255,.55);}
+  .app[data-state="thinking"] .voice-orb{animation:orb-pulse 1s ease-in-out infinite alternate}
+  @keyframes orb-pulse{from{transform:scale(1);filter:brightness(1)}to{transform:scale(1.055);filter:brightness(1.18)}}
+  .status{min-height:20px; color:#a9b4d0; font-size:13px; letter-spacing:.01em; text-transform:none;}
+  .interim{font-family:var(--font-body); font-size:15px; color:#b7afff;}
+  .hint{padding:12px 15px; border-radius:12px; background:#171f35; border:1px solid #394666; color:#d8e0f7; font-size:13px;}
+  .hint.error{color:#ff9ba1;border-color:#a64e60}
+  .controls{gap:12px; margin-top:22px; padding:16px; border:1px solid rgba(142,155,200,.17); border-radius:20px; background:rgba(20,27,46,.82); box-shadow:0 14px 40px rgba(0,0,0,.18);}
+  .row{gap:10px}
+  .mic-btn{width:54px;height:54px; border:1px solid #4b477d; background:#24254c; color:#dcd8ff; transition:all .2s ease;}
+  .mic-btn:hover{background:#33316b;border-color:#9b90ff;transform:translateY(-1px)}
+  .mic-btn[data-active="true"]{background:#7669e8; border-color:#b5adff; color:white; box-shadow:0 0 0 5px rgba(139,124,255,.14);}
+  input[type="text"]{min-height:54px; border:1px solid #35415f; border-radius:15px; background:#0f1629; color:#edf2ff; padding:15px 17px; font-size:14px; transition:border-color .2s,box-shadow .2s;}
+  input[type="text"]::placeholder{color:#7483a5}
+  input[type="text"]:focus{border-color:#8b7cff; box-shadow:0 0 0 3px rgba(139,124,255,.13);}
+  .send-btn,.mute-btn{min-height:46px; border:1px solid #35415f; border-radius:13px; padding:0 16px; background:#1a2340; color:#dce4ff; font-size:13px; transition:all .2s ease;}
+  .send-btn{background:linear-gradient(135deg,#8175f2,#655bd0); border-color:#9a90ff; color:#fff; font-weight:600;}
+  .send-btn:hover,.mute-btn:hover{border-color:#9185ff;background:#292e55}
+  .send-btn:hover{background:linear-gradient(135deg,#968cff,#7166e4);transform:translateY(-1px)}
+  .mute-btn[data-muted="true"]{color:#ff9ba1;border-color:#a64e60;background:#321d30}
+  .mute-btn[data-wake="true"]{color:#c1baff;border-color:#8176ec;background:#29264f}
+  .log{margin-top:20px; padding:18px; max-height:340px; border:1px solid rgba(142,155,200,.17); border-radius:20px; background:rgba(16,23,40,.78);}
+  .log-entry{gap:12px; padding:12px 0; font-size:14px; line-height:1.6; border-bottom:1px solid rgba(142,155,200,.09);}
+  .log-entry:last-child{border-bottom:0}
+  .log-entry .who{flex:0 0 48px; padding-top:3px; color:#8190b1; font-size:10px; font-weight:700; letter-spacing:.1em;}
+  .log-entry.argus .who,.log-entry a{color:#b0a6ff}
+  .log-entry a{text-decoration:none;border-bottom:1px solid rgba(176,166,255,.35)}
+  .log-entry a:hover{color:#d5d0ff}
+  .log-empty{margin:0; color:#8290b0; font-size:13px; font-style:normal; line-height:1.7;}
+  .footer-note{max-width:440px; margin-top:20px; color:#7482a1; font-size:11px; letter-spacing:.01em; text-transform:none;}
+  .chips{width:100%;margin-top:12px;padding:12px;border-radius:20px;background:rgba(20,27,46,.78);border:1px solid rgba(142,155,200,.17);display:flex;flex-wrap:wrap;gap:8px;justify-content:center;}
+  .chip{border:1px solid #35415f;background:#171f35;color:#c6cdf0;border-radius:999px;padding:7px 12px;font-size:12px;cursor:pointer;}
+  .chip:hover{border-color:#8176ec;color:#e7e5ff}
+  .focus-edit{width:100%;margin-top:10px;padding:12px 14px;border-radius:20px;background:rgba(20,27,46,.78);border:1px solid rgba(142,155,200,.17);display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;}
+  .focus-edit label{font-size:12px;color:#a9b4d0;font-weight:600;letter-spacing:.04em}
+  .focus-edit input[type="number"]{width:76px;min-height:40px;padding:8px 10px;border-radius:12px;text-align:center;border:1px solid #35415f;background:#0f1629;color:#edf2ff;font-size:16px;font-weight:600;}
+  .focus-presets{display:flex;flex-wrap:wrap;gap:6px}
+  .focus-presets button, .focus-go, .focus-stop, .focus-pause{border:1px solid #35415f;background:#171f35;color:#c6cdf0;border-radius:999px;padding:7px 12px;font-size:12px;cursor:pointer;}
+  .focus-presets button[data-on="true"], .focus-go{background:linear-gradient(135deg,#8175f2,#655bd0);color:#fff;border-color:#9a90ff;}
+  .focus-stop{color:#ff9ba1;background:#321d30;border-color:#a64e60}
+  .focus-pause{color:#c1baff;background:#29264f;border-color:#8176ec}
+  .notes-card{width:100%;margin-top:14px;padding:14px 16px;border-radius:20px;display:none;background:rgba(20,27,46,.78);border:1px solid rgba(142,155,200,.17);}
+  .notes-card.show{display:block}
+  .notes-card h3{margin:0 0 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#8190b1}
+  .notes-card li{margin:0 0 6px;font-size:14px;color:#dce4ff}
+  .open-action{display:none; margin-top:12px; width:100%; text-align:center;}
+  .open-action.show{ display:block; animation: openPulse 1.4s ease-in-out 2; }
+  .open-action a{
+    display:inline-block; padding:14px 22px; border-radius:18px; text-decoration:none;
+    color:#fff; background:linear-gradient(135deg,#8175f2,#655bd0); border:1px solid #9a90ff;
+    font-weight:700; font-size:15px; box-shadow:0 8px 24px rgba(129,117,242,.35);
+  }
+  .open-action a:hover{ transform:translateY(-1px); filter:brightness(1.05); }
+  @keyframes openPulse{
+    0%,100%{ box-shadow:0 0 0 0 rgba(129,117,242,.0); }
+    50%{ box-shadow:0 0 0 10px rgba(129,117,242,.18); }
+  }
+  .timer-ring{position:absolute;left:50%;top:50%;width:148px;height:148px;margin:-74px 0 0 -74px;border-radius:50%;pointer-events:none;background:conic-gradient(#7ed0c8 var(--focus-pct,0%), transparent 0);mask:radial-gradient(farthest-side,transparent calc(100% - 7px),#000 calc(100% - 6px));-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 7px),#000 calc(100% - 6px));opacity:0;transition:opacity .3s;}
+  .app[data-state="focus"] .timer-ring{opacity:1}
+  .watch-dot{position:absolute;width:8px;height:8px;border-radius:50%;background:#9aaeff;box-shadow:0 0 10px rgba(125,150,255,.55);animation:twinkle 3.4s ease-in-out infinite;}
+  .watch-dot:nth-child(1){top:14px;left:50%;margin-left:-4px;animation-delay:0s}
+  .watch-dot:nth-child(2){top:44px;right:22px;animation-delay:.4s}
+  .watch-dot:nth-child(3){bottom:36px;right:16px;animation-delay:.8s}
+  .watch-dot:nth-child(4){bottom:12px;left:50%;margin-left:-4px;animation-delay:1.2s}
+  .watch-dot:nth-child(5){bottom:36px;left:16px;animation-delay:1.6s}
+  .watch-dot:nth-child(6){top:44px;left:22px;animation-delay:2s}
+  @keyframes twinkle{0%,100%{opacity:.35;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
+  @media(max-width:480px){ .app{padding-top:16px} .top-row{padding:14px;border-radius:16px} .wordmark{font-size:22px} .eye-wrap{margin-top:28px} .controls{padding:12px;border-radius:16px} .log{padding:14px;border-radius:16px} .mute-btn{flex:1 1 auto;padding:0 10px} .send-btn{flex:0 0 auto} .voice-orb{width:112px;height:112px} }
+
+  /* Soft pastel blue-and-lilac theme based on the supplied reference */
+  :root{
+    --bg:#f4f5ff;
+    --bg-elev:rgba(255,255,255,.72);
+    --panel-border:rgba(255,255,255,.92);
+    --text:#465477;
+    --text-dim:#7889b3;
+    --accent:#8298f7;
+    --accent-glow:#b6c5ff;
+    --ring:#a8b8ff;
+    --danger:#ee7895;
+    --font-display:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    --font-body:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  html,body{min-height:100%;background:#f3f5ff}
+  body{
+    color:var(--text);
+    background:linear-gradient(116deg,#fbe8f4 0%,#f4f4ff 45%,#d7e9ff 100%);
+    font-family:var(--font-body);
+  }
+  .app{max-width:700px;padding:24px clamp(16px,4vw,34px) 36px}
+  .top-row{
+    align-items:center;padding:16px 18px;border:1px solid rgba(255,255,255,.96);
+    border-radius:26px;background:rgba(255,255,255,.54);
+    box-shadow:0 8px 28px rgba(126,151,207,.08);
+    backdrop-filter:blur(16px);
+  }
+  .wordmark{font-size:25px;font-weight:750;letter-spacing:.16em;line-height:1.1;color:#435174}
+  .tagline{margin-top:7px;font-size:12px;font-style:normal;letter-spacing:.04em;color:#8798bf}
+  .theme-toggle{
+    border:1px solid #dce4ff;border-radius:999px;padding:9px 14px;color:#687ba8;
+    background:rgba(255,255,255,.72);font-size:12px;box-shadow:0 4px 12px rgba(123,148,211,.08);
+  }
+  .theme-toggle:hover{background:#fff;border-color:#cbd7ff;transform:translateY(-1px)}
+  .eye-wrap{position:relative;width:176px;height:176px;margin:30px 0 18px;filter:none}
+  .voice-orb{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:124px;height:124px;border:1px solid rgba(255,255,255,.95);
+    background:radial-gradient(circle at 35% 25%,#ffffff 0%,#f6f7ff 36%,#dce4ff 69%,#b9c9ff 100%);
+    box-shadow:0 0 0 8px rgba(255,255,255,.32),0 0 0 17px rgba(173,192,255,.11),0 8px 24px rgba(126,151,221,.14);
+    transition:transform .25s ease,box-shadow .25s ease,filter .25s ease;
+    display:flex;align-items:center;justify-content:center;border-radius:50%;
+  }
+  .voice-orb:before,.voice-orb:after{inset:-9px;border-color:rgba(168,185,255,.27)}
+  .voice-orb:after{inset:-17px;border-color:rgba(168,185,255,.17)}
+  .voice-orb svg{width:34px;height:34px;stroke:#8499e6}
+  .app[data-state="listening"] .voice-orb{transform:translate(-50%,-50%) scale(1.06);box-shadow:0 0 0 11px rgba(173,192,255,.18),0 0 0 23px rgba(173,192,255,.10),0 0 44px rgba(151,172,241,.28)}
+  .app[data-state="speaking"] .voice-orb{box-shadow:0 0 0 11px rgba(176,191,255,.18),0 0 0 23px rgba(176,191,255,.10),0 0 48px rgba(151,172,241,.30)}
+  .app[data-state="thinking"] .voice-orb{animation:orb-pulse 1s ease-in-out infinite alternate}
+  .status{min-height:20px;color:#7486b2;font-size:14px;letter-spacing:0;text-transform:none;text-align:center}
+  .interim{font-family:var(--font-body);font-size:15px;color:#8498e6}
+  .hint{padding:12px 15px;border-radius:12px;background:rgba(255,255,255,.75);border:1px solid #dce4ff;color:#61749f;font-size:13px}
+  .hint.error{color:#d85f7d;border-color:#f0b2c1}
+  .chips,.focus-edit,.notes-card{
+    background:rgba(255,255,255,.58);border:1px solid rgba(255,255,255,.96);
+    box-shadow:0 8px 26px rgba(125,149,205,.07);backdrop-filter:blur(14px);
+    border-radius:22px;
+  }
+  .chips{margin-top:48px;padding:12px;gap:8px}
+  .chip{
+    border:1px solid #dbe3ff;background:rgba(255,255,255,.82);color:#52668f;
+    border-radius:999px;padding:7px 12px;font-size:12px;cursor:pointer;
+  }
+  .chip:hover{border-color:#aebfff;color:#5c73bd;background:#fff}
+  .focus-edit{margin-top:10px;padding:12px 14px;gap:8px}
+  .focus-edit label{font-size:12px;color:#52658e;font-weight:600;letter-spacing:.04em}
+  .focus-edit input[type="number"]{
+    width:76px;min-height:40px;padding:8px 10px;border-radius:12px;text-align:center;
+    border:1px solid #dbe3ff;background:rgba(255,255,255,.88);color:#52658e;font-size:16px;font-weight:600;
+  }
+  .focus-presets button,.focus-go,.focus-stop,.focus-pause{
+    border:1px solid #dbe3ff;background:rgba(255,255,255,.86);color:#5d719c;
+    border-radius:999px;padding:7px 12px;font-size:12px;cursor:pointer;
+  }
+  .focus-presets button[data-on="true"],.focus-go{
+    background:linear-gradient(135deg,#aebaff,#8da6f7);color:#fff;border-color:#a8b8ff;
+  }
+  .focus-stop{color:#d86683;background:rgba(255,255,255,.8);border-color:#f2c2ce}
+  .focus-pause{color:#6077b4;background:rgba(255,255,255,.8);border-color:#d3ddff}
+  .controls{
+    gap:12px;margin-top:22px;padding:16px;border:1px solid rgba(255,255,255,.96);
+    border-radius:28px;background:rgba(255,255,255,.58);
+    box-shadow:0 8px 28px rgba(125,149,205,.08);backdrop-filter:blur(14px);
+  }
+  .row{gap:10px}
+  .mic-btn{
+    width:54px;height:54px;border:1px solid #dce4ff;background:rgba(255,255,255,.82);
+    color:#8197e6;border-radius:18px;box-shadow:0 5px 14px rgba(126,151,221,.10);
+    transition:all .2s ease;
+  }
+  .mic-btn:hover{background:#fff;border-color:#b9c8ff;transform:translateY(-1px)}
+  .mic-btn[data-active="true"]{background:#91a7f7;border-color:#b8c7ff;color:#fff;box-shadow:0 0 0 5px rgba(157,177,255,.15)}
+  input[type="text"]{
+    min-height:54px;border:1px solid #dbe3ff;border-radius:17px;background:rgba(255,255,255,.82);
+    color:#52658e;padding:15px 17px;font-size:14px;transition:border-color .2s,box-shadow .2s;
+  }
+  input[type="text"]::placeholder{color:#9aa9cc}
+  input[type="text"]:focus{border-color:#9aafff;box-shadow:0 0 0 3px rgba(151,173,255,.14)}
+  .send-btn,.mute-btn{
+    min-height:46px;border:1px solid #dbe3ff;border-radius:15px;padding:0 16px;
+    background:rgba(255,255,255,.84);color:#60749e;font-size:13px;transition:all .2s ease;
+  }
+  .send-btn{background:linear-gradient(135deg,#aab7ff,#899ef3);border-color:#b2c0ff;color:#fff;font-weight:600}
+  .send-btn:hover,.mute-btn:hover{border-color:#b6c5ff;background:#fff}
+  .send-btn:hover{background:linear-gradient(135deg,#b7c2ff,#98adfa);transform:translateY(-1px)}
+  .mute-btn[data-muted="true"]{color:#d86683;border-color:#f0bdca;background:rgba(255,255,255,.84)}
+  .mute-btn[data-wake="true"]{color:#647bb8;border-color:#b9c7ff;background:#edf0ff}
+  .log{margin-top:20px;padding:18px;max-height:340px;border:1px solid rgba(255,255,255,.96);border-radius:22px;background:rgba(255,255,255,.58)}
+  .log-entry{gap:12px;padding:12px 0;font-size:14px;line-height:1.6;border-bottom:1px solid rgba(157,175,220,.16)}
+  .log-entry:last-child{border-bottom:0}
+  .log-entry .who{flex:0 0 48px;padding-top:3px;color:#8192b8;font-size:10px;font-weight:700;letter-spacing:.1em}
+  .log-entry.argus .who,.log-entry a{color:#778fe0}
+  .log-entry a{text-decoration:none;border-bottom:1px solid rgba(119,143,224,.35)}
+  .log-entry a:hover{color:#526cc7}
+  .log-empty{margin:0;color:#8292b7;font-size:13px;font-style:normal;line-height:1.7}
+  .footer-note{max-width:440px;margin-top:20px;color:#8796b8;font-size:11px;letter-spacing:.01em;text-transform:none}
+  .notes-card h3{color:#8192b8}
+  .notes-card li{color:#53658e}
+  .open-action a{background:linear-gradient(135deg,#aab7ff,#899ef3);border-color:#b2c0ff;box-shadow:0 8px 24px rgba(137,158,243,.28)}
+  .watch-dot{background:#9caeff;box-shadow:0 0 10px rgba(125,150,255,.48)}
+  .timer-ring{background:conic-gradient(#9eafff var(--focus-pct,0%),transparent 0)}
+  @media(max-width:480px){
+    .app{padding-top:16px}
+    .top-row{padding:14px;border-radius:20px}
+    .wordmark{font-size:22px}
+    .eye-wrap{margin-top:28px}
+    .chips{margin-top:34px}
+    .controls{padding:12px;border-radius:22px}
+    .log{padding:14px;border-radius:18px}
+    .mute-btn{flex:1 1 auto;padding:0 10px}
+    .send-btn{flex:0 0 auto}
+    .voice-orb{width:112px;height:112px}
+  }
+
+    /* ---------- Camera experience ---------- */
+    .camera-modal{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(5,8,15,.82);backdrop-filter:blur(16px)}
+    .camera-modal.show{display:flex;animation:camIn .22s ease-out}
+    @keyframes camIn{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:scale(1)}}
+    .camera-card{width:min(760px,96vw);max-height:94vh;overflow:auto;border:1px solid rgba(255,255,255,.16);border-radius:28px;background:linear-gradient(145deg,rgba(23,30,45,.98),rgba(10,14,24,.98));box-shadow:0 30px 90px rgba(0,0,0,.45);padding:18px;color:#fff}
+    .camera-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+    .camera-title{font-size:20px;font-weight:800;letter-spacing:.02em}.camera-sub{font-size:12px;opacity:.65;margin-top:3px}
+    .camera-close{border:0;background:rgba(255,255,255,.08);color:#fff;width:38px;height:38px;border-radius:50%;font-size:22px;cursor:pointer}
+    .camera-stage{position:relative;overflow:hidden;border-radius:22px;background:#05070b;aspect-ratio:16/10;display:grid;place-items:center}
+    .camera-stage video,.camera-stage canvas,.camera-stage img{width:100%;height:100%;object-fit:cover;display:block}
+    .camera-stage canvas,.camera-stage img{display:none}
+    .camera-scan{position:absolute;inset:12%;border:1px solid rgba(255,255,255,.28);border-radius:18px;pointer-events:none;box-shadow:0 0 0 999px rgba(0,0,0,.08)}
+    .camera-scan:after{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,transparent,#fff,transparent);opacity:.7;animation:scan 2.2s linear infinite}
+    @keyframes scan{0%{transform:translateY(0)}100%{transform:translateY(calc(100% - 2px))}}
+    .camera-count{position:absolute;inset:0;display:grid;place-items:center;font-size:104px;font-weight:900;text-shadow:0 8px 35px #000;opacity:0;pointer-events:none}
+    .camera-count.show{opacity:1;animation:countPop .65s ease-out}@keyframes countPop{0%{transform:scale(1.35);opacity:0}35%{opacity:1}100%{transform:scale(1);opacity:1}}
+    .camera-message{padding:12px 4px 4px;text-align:center;font-size:14px;min-height:40px}.camera-message strong{font-size:17px}
+    .camera-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px}.camera-action{border:0;border-radius:14px;padding:11px 18px;font-weight:800;cursor:pointer;background:#fff;color:#0b0f18}.camera-action.secondary{background:rgba(255,255,255,.09);color:#fff;border:1px solid rgba(255,255,255,.12)}
+    .camera-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}.camera-flash.fire{animation:flash .35s ease-out}@keyframes flash{0%{opacity:0}18%{opacity:.95}100%{opacity:0}}
+    @media(max-width:560px){.camera-card{padding:12px;border-radius:22px}.camera-stage{aspect-ratio:3/4}.camera-count{font-size:76px}}
+
+</style>
+</head>
+<body>
+<div class="app" id="app" data-state="idle">
+  <div class="top-row">
+    <div>
+      <p class="wordmark">ARGUS</p>
+      <p class="tagline">student lookout — not another speaker clone</p>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button">Night watch</button>
+  </div>
+  <div class="eye-wrap" aria-hidden="true">
+    <span class="watch-dot"></span><span class="watch-dot"></span><span class="watch-dot"></span>
+    <span class="watch-dot"></span><span class="watch-dot"></span><span class="watch-dot"></span>
+    <div class="timer-ring" id="timerRing"></div>
+    <div class="voice-orb">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path>
+        <circle cx="12" cy="12" r="3"></circle>
+      </svg>
+    </div>
+  </div>
+  <p class="status" id="statusText">Say “Argus” or tap the orb to begin watch.</p>
+  <p class="interim" id="interimText"></p>
+  <div class="hint" id="hint"></div>
+  <div class="open-action" id="openAction"><a id="openActionLink" href="#" target="_blank" rel="noopener">Open</a></div>
+  <div class="chips" id="chips">
+    <button class="chip" data-say="What makes you different?">Why I'm different</button>
+    <button class="chip" data-say="Explain gravity simply">Explain simply</button>
+    <button class="chip" data-say="Quiz me on the solar system">Quiz me</button>
+    <button class="chip" data-say="Remember my science homework is chapter 4">Remember this</button>
+    <button class="chip" data-say="What did I ask you to remember?">My notes</button>
+  </div>
+  <div class="focus-edit" id="focusEdit">
+    <label for="focusMins">Focus minutes</label>
+    <input id="focusMins" type="number" min="1" max="180" value="25" step="1">
+    <div class="focus-presets">
+      <button type="button" data-mins="10">10</button>
+      <button type="button" data-mins="15">15</button>
+      <button type="button" data-mins="25" data-on="true">25</button>
+      <button type="button" data-mins="45">45</button>
+      <button type="button" data-mins="60">60</button>
+    </div>
+    <button type="button" class="focus-go" id="focusStartBtn">Start focus</button>
+    <button type="button" class="focus-pause" id="focusPauseBtn">Pause</button>
+    <button type="button" class="focus-stop" id="focusStopBtn">Stop</button>
+  </div>
+  <div class="controls">
+    <div class="row">
+      <button class="mic-btn" id="micBtn" type="button" aria-label="Start listening">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+      </button>
+      <input type="text" id="textInput" placeholder="Or type here…" autocomplete="off">
+      <button class="send-btn" id="sendBtn" type="button">Send</button>
+    </div>
+    <div class="row">
+      <button class="mute-btn" id="muteBtn" type="button" data-muted="false">Voice: on</button>
+      <button class="mute-btn" id="wakeBtn" type="button" data-wake="false">Wake: off</button>
+      <button class="mute-btn" id="clearBtn" type="button">Clear</button>
+    </div>
+  </div>
+  <div class="notes-card" id="notesCard">
+    <h3>Lookout notes</h3>
+    <ul id="notesList"></ul>
+  </div>
+  <div class="log" id="log">
+    <p class="log-empty" id="logEmpty">Try "Argus, start a 25 minute focus", "explain gravity simply", "quiz me on magnets", "biography of Marie Curie", or "remember my homework is maths page 12".</p>
+  </div>
+  <p class="footer-note">
+    Voice input needs a secure page (https:// or localhost) and mic permission.
+    Browsers often block new tabs after a voice command — when that happens, tap the big “Open …” button that appears under the status line.
+  </p>
+</div>
+<!-- ARGUS Camera -->
+<div class="camera-modal" id="cameraModal" aria-hidden="true">
+  <div class="camera-card" role="dialog" aria-modal="true" aria-label="ARGUS Camera">
+    <div class="camera-head">
+      <div><div class="camera-title">ARGUS Camera</div><div class="camera-sub">5-second countdown • live camera preview</div></div>
+      <button class="camera-close" id="cameraClose" type="button" aria-label="Close camera">×</button>
+    </div>
+    <div class="camera-stage">
+      <video id="cameraVideo" autoplay playsinline muted></video>
+      <canvas id="cameraCanvas"></canvas>
+      <img id="cameraPhoto" alt="Captured photo">
+      <div class="camera-scan"></div>
+      <div class="camera-count" id="cameraCount"></div>
+      <div class="camera-flash" id="cameraFlash"></div>
+    </div>
+    <div class="camera-message" id="cameraMessage">Checking camera access…</div>
+    <div class="camera-actions">
+      <button class="camera-action" id="cameraCapture" type="button" disabled>📸 Take Photo</button>
+      <button class="camera-action secondary" id="cameraRetake" type="button" style="display:none">↻ Retake</button>
+      <button class="camera-action secondary" id="cameraSave" type="button" style="display:none">⇩ Save Photo</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ---------- Element refs ----------
+  const app         = document.getElementById('app');
+  const statusText  = document.getElementById('statusText');
+  const interimText = document.getElementById('interimText');
+  const hintEl      = document.getElementById('hint');
+  const micBtn      = document.getElementById('micBtn');
+  const textInput   = document.getElementById('textInput');
+  const sendBtn     = document.getElementById('sendBtn');
+  const muteBtn     = document.getElementById('muteBtn');
+  const wakeBtn     = document.getElementById('wakeBtn');
+  const clearBtn    = document.getElementById('clearBtn');
+  const log         = document.getElementById('log');
+  const logEmpty    = document.getElementById('logEmpty');
+  const themeToggle = document.getElementById('themeToggle');
+  const openAction = document.getElementById('openAction');
+  const openActionLink = document.getElementById('openActionLink');
+  const notesCard = document.getElementById('notesCard');
+  const notesList = document.getElementById('notesList');
+  const timerRing = document.getElementById('timerRing');
+  const cameraModal = document.getElementById('cameraModal');
+  const cameraVideo = document.getElementById('cameraVideo');
+  const cameraCanvas = document.getElementById('cameraCanvas');
+  const cameraPhoto = document.getElementById('cameraPhoto');
+  const cameraCount = document.getElementById('cameraCount');
+  const cameraMessage = document.getElementById('cameraMessage');
+  const cameraCapture = document.getElementById('cameraCapture');
+  const cameraRetake = document.getElementById('cameraRetake');
+  const cameraSave = document.getElementById('cameraSave');
+  const cameraClose = document.getElementById('cameraClose');
+  const cameraFlash = document.getElementById('cameraFlash');
+  let cameraStream = null;
+  let cameraTimer = null;
+  let cameraBusy = false;
+
+  // ---------- App state ----------
+  const state = {
+    muted: false,
+    theme: 'auto',
+    busy: false,
+    cmdListening: false,
+    wakeListening: false,
+    wakeMode: false,
+    micReady: false,
+    recognition: null,
+    wakeRec: null,
+    focusUntil: 0,
+    focusTotal: 0,
+    focusTick: null,
+    focusPaused: false,
+    focusLeft: 0,
+    simpleMode: false,
+    srSupported: !!(window.SpeechRecognition || window.webkitSpeechRecognition)
+  };
+
+  const DIFFERENT = "Most voice assistants copy Siri: they wait for a company wake word and try to do everything. I am a student lookout. I wake to Argus, keep notes on this device, run a focus timer you can see on the orb, explain topics in plain words, quiz you, and for a biography I open Wikipedia, then Google, then I report. I do not control lights or shops.";
+
+  // ---------- Runtime diagnostics ----------
+  function voiceEnvironmentMessage(){
+    const secure = window.isSecureContext || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    if(!state.srSupported) return 'Voice recognition is not available here. Use the latest Chrome or Edge, or use the text box.';
+    if(!secure) return 'Voice works most reliably on HTTPS or localhost. If this is a local HTML file, open it through a local server.';
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return 'This browser does not expose microphone access. Use Chrome or Edge and allow the microphone.';
+    return '';
+  }
+  function showVoiceReadyStatus(){
+    const msg = voiceEnvironmentMessage();
+    if(msg && !state.srSupported){
+      showHint(msg, true);
+      statusText.textContent = 'Voice unavailable';
+    }
+  }
+
+  // ---------- Notes ----------
+  function loadNotes(){ try{ return JSON.parse(localStorage.getItem('argus-lookout-notes')||'[]'); }catch(e){ return []; } }
+  function saveNotes(notes){ localStorage.setItem('argus-lookout-notes', JSON.stringify(notes)); }
+  function renderNotes(){
+    if(!notesCard || !notesList) return;
+    const notes = loadNotes();
+    notesList.innerHTML = '';
+    if(!notes.length){ notesCard.classList.remove('show'); return; }
+    notes.forEach(n => { const li = document.createElement('li'); li.textContent = n; notesList.appendChild(li); });
+    notesCard.classList.add('show');
+  }
+  function rememberNote(text){
+    const notes = loadNotes();
+    notes.unshift(text);
+    saveNotes(notes.slice(0,12));
+    renderNotes();
+    speak('Noted. On the lookout board: ' + text);
+  }
+
+  // ---------- Focus timer ----------
+  function focusRemaining(){
+    if(state.focusPaused) return Math.max(0, state.focusLeft);
+    return Math.max(0, state.focusUntil - Date.now());
+  }
+  function syncPauseBtn(){
+    const btn = document.getElementById('focusPauseBtn');
+    if(!btn) return;
+    btn.textContent = state.focusPaused ? 'Resume' : 'Pause';
+    btn.dataset.paused = state.focusPaused ? 'true' : 'false';
+  }
+  function focusLabel(){
+    const ms = focusRemaining();
+    const m = Math.floor(ms/60000);
+    const s = Math.floor((ms%60000)/1000);
+    const clock = m + ':' + String(s).padStart(2,'0');
+    return state.focusPaused ? ('Focus paused: ' + clock + ' left.') : ('Focus watch: ' + clock + ' left.');
+  }
+  function updateFocusRing(){
+    if(!timerRing) return;
+    if(state.focusTotal<=0){ timerRing.style.setProperty('--focus-pct','0%'); return; }
+    const left = focusRemaining();
+    const done = 1 - (left / state.focusTotal);
+    timerRing.style.setProperty('--focus-pct', Math.round(done*100) + '%');
+    app.dataset.paused = state.focusPaused ? 'true' : 'false';
+  }
+  function clearFocusTick(){ if(state.focusTick){ clearInterval(state.focusTick); state.focusTick = null; } }
+  function runFocusTick(){
+    clearFocusTick();
+    state.focusTick = setInterval(() => {
+      if(state.focusPaused) return;
+      updateFocusRing();
+      if(Date.now() >= state.focusUntil){ stopFocus(true); }
+      else if(!state.busy && !state.cmdListening) statusText.textContent = focusLabel();
+    }, 1000);
+  }
+  function pauseFocus(){
+    if(!focusActive() || state.focusPaused) return false;
+    state.focusLeft = focusRemaining();
+    state.focusPaused = true;
+    clearFocusTick();
+    updateFocusRing();
+    syncPauseBtn();
+    statusText.textContent = focusLabel();
+    return true;
+  }
+  function resumeFocus(){
+    if(!state.focusPaused) return false;
+    state.focusPaused = false;
+    state.focusUntil = Date.now() + Math.max(0, state.focusLeft);
+    setState('focus');
+    updateFocusRing();
+    syncPauseBtn();
+    runFocusTick();
+    statusText.textContent = focusLabel();
+    return true;
+  }
+  function toggleFocusPause(){
+    if(state.focusPaused){ resumeFocus(); speak('Focus watch resumed. ' + focusLabel()); }
+    else if(focusActive()){ pauseFocus(); speak('Focus watch paused. ' + focusLabel()); }
+    else { speak('No focus watch is running. Set minutes, then start.'); }
+  }
+  function stopFocus(announce){
+    clearFocusTick();
+    state.focusUntil = 0; state.focusTotal = 0; state.focusPaused = false; state.focusLeft = 0;
+    updateFocusRing();
+    syncPauseBtn();
+    if(announce) speak('Focus watch is over. Stretch, then tell me the next task.');
+    else if(app.dataset.state==='focus') setState('idle');
+  }
+  function readFocusMins(){
+    const el = document.getElementById('focusMins');
+    let n = el ? parseInt(el.value,10) : 25;
+    if(!n || n < 1) n = 25;
+    if(n > 180) n = 180;
+    return n;
+  }
+  function writeFocusMins(n){
+    n = Math.min(180, Math.max(1, parseInt(n,10)||25));
+    const el = document.getElementById('focusMins');
+    if(el) el.value = n;
+    document.querySelectorAll('.focus-presets button').forEach(btn => { btn.dataset.on = String(parseInt(btn.dataset.mins,10) === n); });
+    try{ localStorage.setItem('argus-focus-mins', String(n)); }catch(e){}
+    return n;
+  }
+  function startFocus(minutes){
+    const mins = Math.min(180, Math.max(1, parseInt(minutes,10)||readFocusMins()));
+    stopFocus(false);
+    state.focusPaused = false;
+    state.focusLeft = 0;
+    state.focusTotal = mins * 60000;
+    state.focusUntil = Date.now() + state.focusTotal;
+    setState('focus');
+    updateFocusRing();
+    syncPauseBtn();
+    runFocusTick();
+    writeFocusMins(mins);
+    speak('Focus watch started for ' + mins + ' minutes. I will call you when time is up.');
+  }
+  function simplifyText(s){
+    let x = String(s||'').replace(/\([^)]+\)/g,' ');
+    x = x.replace(/\s+/g,' ').trim();
+    return x.split(/(?<=[.!?])\s+/).slice(0,2).join(' ');
+  }
+  function makeQuiz(topic, extract){
+    const sentence = (extract||'').split(/(?<=[.!?])\s+/).find(x => x.length>40) || extract || topic;
+    const short = sentence.length>180 ? sentence.slice(0,177)+'…' : sentence;
+    return 'Briefing: ' + short + ' Now your turn. In your own words, what is ' + topic + '?';
+  }
+
+  function setState(s){ app.dataset.state = s; }
+  function focusActive(){ return state.focusPaused || state.focusUntil > Date.now(); }
+  function idleStatus(){
+    if(focusActive()) return focusLabel();
+    return state.wakeMode ? 'On watch. Say “Argus”, then your request.' : 'Tap the orb when you need the lookout.';
+  }
+  function showHint(msg, isError){
+    hintEl.textContent = msg;
+    hintEl.classList.add('show');
+    hintEl.classList.toggle('error', !!isError);
+  }
+  function hideHint(){ hintEl.classList.remove('show','error'); }
+
+  function addLog(who, text){
+    if(logEmpty.parentNode) logEmpty.remove();
+    const entry = document.createElement('div');
+    entry.className = 'log-entry ' + (who==='Argus' ? 'argus' : 'user');
+    const w = document.createElement('div'); w.className = 'who'; w.textContent = who;
+    const t = document.createElement('div'); t.textContent = text;
+    entry.appendChild(w); entry.appendChild(t);
+    log.appendChild(entry);
+    log.scrollTop = log.scrollHeight;
+  }
+  function addLogLink(label, url){
+    if(logEmpty.parentNode) logEmpty.remove();
+    const entry = document.createElement('div');
+    entry.className = 'log-entry argus';
+    const w = document.createElement('div'); w.className = 'who'; w.textContent = 'Argus';
+    const t = document.createElement('div');
+    const a = document.createElement('a');
+    a.href = url; a.target = '_blank'; a.rel = 'noopener';
+    a.textContent = 'Open ' + label + ' →';
+    t.appendChild(a);
+    entry.appendChild(w); entry.appendChild(t);
+    log.appendChild(entry);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  // ---------- Theme ----------
+  themeToggle.addEventListener('click', () => {
+    if(state.theme==='auto'){ state.theme='dark'; document.documentElement.setAttribute('data-theme','dark'); themeToggle.textContent='Day watch'; }
+    else if(state.theme==='dark'){ state.theme='light'; document.documentElement.setAttribute('data-theme','light'); themeToggle.textContent='Auto watch'; }
+    else { state.theme='auto'; document.documentElement.removeAttribute('data-theme'); themeToggle.textContent='Night watch'; }
+  });
+
+  // ---------- Mute ----------
+  muteBtn.addEventListener('click', () => {
+    state.muted = !state.muted;
+    muteBtn.dataset.muted = state.muted ? 'true' : 'false';
+    muteBtn.textContent = 'Voice: ' + (state.muted ? 'off' : 'on');
+    if(state.muted && window.speechSynthesis) window.speechSynthesis.cancel();
+  });
+
+  // ---------- Wake Toggle ----------
+  wakeBtn.addEventListener('click', () => {
+    state.wakeMode = !state.wakeMode;
+    wakeBtn.dataset.wake = state.wakeMode ? 'true' : 'false';
+    wakeBtn.textContent = state.wakeMode ? 'Wake: Argus' : 'Wake: off';
+    if(state.wakeMode){ startWake(); } else { stopWake(); statusText.textContent = idleStatus(); }
+  });
+
+  // ---------- Clear ----------
+  clearBtn.addEventListener('click', () => {
+    log.innerHTML = '';
+    log.appendChild(logEmpty);
+    statusText.textContent = idleStatus();
+  });
+  document.querySelectorAll('.chip').forEach(btn => {
+    btn.addEventListener('click', () => handleInput(btn.dataset.say));
+  });
+
+  (function setupFocusEdit(){
+    const input = document.getElementById('focusMins');
+    const startBtn = document.getElementById('focusStartBtn');
+    const stopBtn = document.getElementById('focusStopBtn');
+    try{ const saved = parseInt(localStorage.getItem('argus-focus-mins'),10); if(saved) writeFocusMins(saved); }catch(e){}
+    if(input){
+      input.addEventListener('change', () => writeFocusMins(input.value));
+      input.addEventListener('keydown', e => { if(e.key==='Enter') startFocus(readFocusMins()); });
+    }
+    document.querySelectorAll('.focus-presets button').forEach(btn => {
+      btn.addEventListener('click', () => writeFocusMins(btn.dataset.mins));
+    });
+    const pauseBtn = document.getElementById('focusPauseBtn');
+    if(startBtn) startBtn.addEventListener('click', () => startFocus(readFocusMins()));
+    if(pauseBtn) pauseBtn.addEventListener('click', toggleFocusPause);
+    if(stopBtn) stopBtn.addEventListener('click', () => { stopFocus(false); speak('Focus watch stopped.'); });
+    syncPauseBtn();
+  })();
+
+  // ---------- Speech output ----------
+  function speak(text, onDone){
+    addLog('Argus', text);
+    state.busy = true;
+    stopWake();
+    const finish = () => {
+      state.busy = false;
+      setState(focusActive() ? 'focus' : 'idle');
+      statusText.textContent = idleStatus();
+      // A greeting callback may immediately start command capture. Do not
+      // also restart the wake listener here, or the two recognizers race.
+      if(typeof onDone === 'function') {
+        onDone();
+      } else if(state.wakeMode) {
+        setTimeout(startWake, 250);
+      }
+    };
+    if(state.muted || !('speechSynthesis' in window)){ finish(); return; }
+    setState('speaking');
+    statusText.textContent = 'Reporting…';
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1.12; u.pitch = 1.04;
+    u.onend = finish; u.onerror = finish;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+  }
+
+  // =================================================================
+  //  SITES
+  // =================================================================
+  const SITES = {
+    // School commands are handled by matchSchoolOpen() below.
+    'appa public school':{label:'Appa Public School, Kalaburagi',url:'https://appapublicschool.com/'},
+    'appa public':{label:'Appa Public School, Kalaburagi',url:'https://appapublicschool.com/'},
+    'appa school':{label:'Appa Public School, Kalaburagi',url:'https://appapublicschool.com/'},
+    'aps':{label:'Appa Public School, Kalaburagi',url:'https://appapublicschool.com/'},
+    'sharana basaveshwara temple':{label:'Sharana Basaveshwara Temple',url:'https://en.wikipedia.org/wiki/Sharana_Basaveshwara_Temple'},
+    'sharana basaveshwara':{label:'Sharana Basaveshwara Temple',url:'https://en.wikipedia.org/wiki/Sharana_Basaveshwara_Temple'},
+    'youtube':{label:'YouTube',url:'https://www.youtube.com'},
+    'claude':{label:'Claude',url:'https://claude.ai'},
+    'chatgpt':{label:'ChatGPT',url:'https://chatgpt.com'},
+    'chat gpt':{label:'ChatGPT',url:'https://chatgpt.com'},
+    'openai':{label:'OpenAI',url:'https://openai.com'},
+    'google':{label:'Google',url:'https://www.google.com'},
+    'gmail':{label:'Gmail',url:'https://mail.google.com'},
+    'maps':{label:'Google Maps',url:'https://maps.google.com'},
+    'google maps':{label:'Google Maps',url:'https://maps.google.com'},
+    'spotify':{label:'Spotify',url:'https://open.spotify.com'},
+    'netflix':{label:'Netflix',url:'https://www.netflix.com'},
+    'github':{label:'GitHub',url:'https://github.com'},
+    'wikipedia':{label:'Wikipedia',url:'https://www.wikipedia.org'},
+    'amazon':{label:'Amazon',url:'https://www.amazon.com'},
+    'twitter':{label:'X',url:'https://x.com'},
+    'x':{label:'X',url:'https://x.com'},
+    'instagram':{label:'Instagram',url:'https://www.instagram.com'},
+    'facebook':{label:'Facebook',url:'https://www.facebook.com'},
+    'reddit':{label:'Reddit',url:'https://www.reddit.com'},
+    'linkedin':{label:'LinkedIn',url:'https://www.linkedin.com'}
+  };
+
+  // ---------- SCHOOL COMMANDS ----------
+  // Only OPEN/LAUNCH commands are routed here, so the word "school"
+  // in normal questions is never redirected.
+  function normalizeSchoolSpeech(text){
+    return String(text || '').toLowerCase()
+      .replace(/[’']/g,'')
+      .replace(/\bappp+\b/g,'appa')
+      .replace(/\bapa\b/g,'appa')
+      .replace(/\bappaah\b/g,'appa')
+      .replace(/\bappaa\b/g,'appa')
+      .replace(/\bpublick\b/g,'public')
+      .replace(/\bschooll\b/g,'school')
+      .replace(/\s+/g,' ')
+      .trim();
+  }
+
+  function matchSchoolOpen(raw){
+    const s = normalizeSchoolSpeech(raw)
+      .replace(/^(?:hey\s+)?argus[,:;\s-]+/,'')
+      .replace(/[.?!]+$/,'')
+      .replace(/\s+please$/,'')
+      .trim();
+
+    const openMatch = s.match(/^(open|launch|go to|start|pull up|visit)\s+(.+)$/i);
+    if(!openMatch) return null;
+
+    const target = openMatch[2]
+      .replace(/^['"]|['"]$/g,'')
+      .replace(/^the\s+/,'')
+      .trim();
+
+    const schoolRequest =
+      /^(?:any|a|the)?\s*school(?:\s+(?:in|at|near)\s+(?:kalaburagi|gulbarga))?$/i.test(target) ||
+      /^(?:any|a|the)?\s*public\s+school(?:\s+(?:in|at|near)\s+(?:kalaburagi|gulbarga))?$/i.test(target) ||
+      /^(?:appa|appp|apa|appaa|appaah)\s+(?:public\s+)?school(?:\s+(?:in|at|near)\s+(?:kalaburagi|gulbarga))?$/i.test(target) ||
+      /^(?:appa|appp|apa|appaa|appaah)\s+public(?:\s+school)?(?:\s+(?:in|at|near)\s+(?:kalaburagi|gulbarga))?$/i.test(target) ||
+      /^(?:aps)\s+(?:school)?(?:\s+(?:in|at|near)\s+(?:kalaburagi|gulbarga))?$/i.test(target);
+
+    return schoolRequest ? SITES['appa public school'] : null;
+  }
+
+  // ---------- SMART WEB OPENER ----------
+  // ARGUS understands natural commands such as:
+  //   open YouTube
+  //   open "The New York Times"
+  //   open the Harvard University website
+  //   go to google.com
+  //   visit https://example.com
+  //   launch ChatGPT
+  // Unknown names are sent to Google as an exact search instead of failing.
+  function normalizeOpenTarget(value){
+    return String(value || '')
+      .replace(/[“”„‟]/g, '"')
+      .replace(/[‘’]/g, "'")
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/^['"]+|['"]+$/g, '')
+      .replace(/[.?!]+$/g, '')
+      .replace(/\s+(?:please|for me)$/i, '')
+      .trim();
+  }
+
+  function normalizeAlias(value){
+    return normalizeOpenTarget(value)
+      .toLowerCase()
+      .replace(/\b(?:the|website|web\s*site|site|webpage|web\s*page|app|application)\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function isWebDomain(value){
+    const s = normalizeOpenTarget(value);
+    return /^(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:[/?#][^\s]*)?$/i.test(s);
+  }
+
+  function toWebUrl(value){
+    const s = normalizeOpenTarget(value);
+    if(/^https?:\/\//i.test(s)) return s;
+    if(/^www\./i.test(s) || isWebDomain(s)) return 'https://' + s;
+    return null;
+  }
+
+  function findKnownSite(target){
+    const raw = normalizeOpenTarget(target);
+    const candidates = [
+      normalizeAlias(raw),
+      normalizeAlias(raw.replace(/^the\s+/i, ''))
+    ].filter(Boolean);
+
+    // Exact aliases first.
+    for(const candidate of candidates){
+      if(SITES[candidate]) return SITES[candidate];
+    }
+
+    // Then match a known site when the user adds words such as
+    // "website", "site", or "the" around the name.
+    const keys = Object.keys(SITES);
+    for(const candidate of candidates){
+      for(const key of keys){
+        if(candidate === key) return SITES[key];
+      }
+    }
+
+    // Finally allow a short known name inside a longer natural phrase,
+    // while avoiding overly broad one-letter matches such as "x".
+    for(const candidate of candidates){
+      for(const key of keys){
+        if(key.length >= 4 && new RegExp('(?:^|\\s)' + key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '(?:$|\\s)','i').test(candidate)){
+          return SITES[key];
+        }
+      }
+    }
+    return null;
+  }
+
+  function matchOpen(t){
+    const s = String(t || '').trim()
+      .replace(/^(?:hey\s+)?argus[,:;\s-]+/i, '')
+      .replace(/[.?!]+$/,'')
+      .replace(/\s+please$/i,'')
+      .trim();
+
+    // Keep timer/focus commands away from the web opener.
+    if(/^(?:open|launch|go\s+to|start|pull\s+up|visit|browse|navigate\s+to)\s+(?:a\s+)?(?:\d+|five|ten|fifteen|twenty|twenty-five|twenty five|thirty|forty|forty-five|forty five|sixty|one|two)\s*(?:minute|min|minutes)?\s*(?:focus|timer|pomodoro|watch)\b/i.test(s)) return null;
+
+    const m = s.match(/^(?:open|launch|go\s+to|start|pull\s+up|visit|browse|navigate\s+to)\s+(.+)$/i);
+    if(!m) return null;
+
+    let target = normalizeOpenTarget(m[1]);
+    if(!target) return null;
+
+    // "open website X", "open the website X", "open site X"
+    target = target
+      .replace(/^(?:the\s+)?(?:website|web\s*site|site|webpage|web\s*page)\s+(?:called\s+|named\s+)?/i,'')
+      .replace(/^(?:the\s+)?(?:website|web\s*site|site)\s+of\s+/i,'')
+      .trim();
+
+    // "open X website/site/app" — keep X, discard the descriptor.
+    target = target.replace(/\s+(?:website|web\s*site|site|webpage|web\s*page|app|application)$/i,'').trim();
+    target = normalizeOpenTarget(target);
+    if(!target) return null;
+
+    // A real URL/domain always wins over search.
+    const directUrl = toWebUrl(target);
+    if(directUrl){
+      return {label: target, url: directUrl};
+    }
+
+    // Configured sites open directly.
+    const known = findKnownSite(target);
+    if(known) return known;
+
+    // Anything else is a valid web request. Search the exact phrase.
+    // This means ARGUS can handle names it has never been programmed to know.
+    return {
+      label: target,
+      url: 'https://www.google.com/search?q=' + encodeURIComponent(target)
+    };
+  }
+
+  function matchPlay(t){
+    const s = t.trim().replace(/[.?!]+$/,'').replace(/\s+please$/i,'');
+    const m = s.match(/^play\s+(?:song\s+)?(.+)$/i);
+    if(!m) return null;
+    const song = m[1].trim().replace(/^['\"]|['\"]$/g,'').trim();
+    return song ? {song, url:'https://www.youtube.com/results?search_query='+encodeURIComponent(song)} : null;
+  }
+
+  function showOpenAction(label, url){
+    if(!openAction || !openActionLink) return;
+    openActionLink.href = url;
+    openActionLink.textContent = 'Open ' + label + ' →';
+    openAction.classList.add('show');
+    // Keep button visible and easy to find after a voice command
+    try{ openAction.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }catch(e){}
+  }
+  function hideOpenAction(){ if(openAction) openAction.classList.remove('show'); }
+
+  // ---------- SAFE launcher + managed tabs ----------
+  // Keep references only to tabs Argus itself opens. Browsers do not allow
+  // a page to close tabs that were opened manually or through an ordinary link.
+  // Voice / async handlers are NOT a user gesture, so many browsers block
+  // window.open(). We always show the Open button as a reliable fallback.
+  const argusOpenedTabs = [];
+  function openExternal(url, label=''){
+    if(!url) return false;
+    // Method 1: window.open
+    // Do NOT pass a features string — that forces a popup window and often
+    // makes the return value null even when a real tab opens successfully.
+    try{
+      const win = window.open(url, '_blank');
+      if(win){
+        argusOpenedTabs.push({win, url, label: String(label || '')});
+        try{ win.opener = null; }catch(e){}
+        return true;
+      }
+    }catch(e){}
+    // Method 2: temporary <a> click (sometimes allowed when window.open is blocked)
+    try{
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { try{ a.remove(); }catch(e){} }, 0);
+    }catch(e){}
+    return false;
+  }
+
+  function closeExternal(target){
+    const needle = String(target || '').toLowerCase().trim()
+      .replace(/^the\s+/, '').replace(/\s+(tab|website|site|app)$/, '');
+    if(!needle) return 'Tell me which website to close.';
+    let closed = 0;
+    for(let i = argusOpenedTabs.length - 1; i >= 0; i--){
+      const entry = argusOpenedTabs[i];
+      let host = '';
+      try{ host = new URL(entry.url, location.href).hostname.toLowerCase(); }catch(e){}
+      const label = entry.label.toLowerCase();
+      const hostMatches = host.includes(needle.replace(/\s+/g, '')) ||
+        (needle === 'google' && /(^|\.)google\./i.test(host)) ||
+        (needle === 'youtube' && /(^|\.)youtube\.com$/i.test(host));
+      if(hostMatches || label.includes(needle)){
+        try{
+          if(!entry.win.closed){ entry.win.close(); closed++; }
+        }catch(e){}
+        argusOpenedTabs.splice(i, 1);
+      }
+    }
+    return closed ? `Closed ${needle}.` : `I can only close tabs that Argus opened and still has permission to close. I couldn't find an open ${needle} tab that Argus controls.`;
+  }
+
+  function playSongNow(item){
+    const ok = openExternal(item.url, 'YouTube');
+    addLogLink('Play on YouTube: '+item.song, item.url);
+    showOpenAction(item.song, item.url);
+    speak(ok
+      ? ('Searching YouTube for '+item.song+'. If the tab did not open, tap the Open button.')
+      : ('Pop-up was blocked. Tap the Open button for '+item.song+'.'));
+  }
+  function openSiteNow(site){
+    const ok = openExternal(site.url, site.label);
+    addLogLink(site.label, site.url);
+    showOpenAction(site.label, site.url);
+    speak(ok
+      ? ('Opening ' + site.label + '. If nothing appeared, tap the Open button below.')
+      : ('Pop-up was blocked. Tap the Open button for ' + site.label + '.'));
+  }
+
+  // =================================================================
+  //  KNOWLEDGE + QUICK ANSWERS
+  // =================================================================
+  const KNOWLEDGE = {
+    'appa public school': "Appa Public School is an educational institution located in Kalaburagi (Gulbarga), Karnataka, India, committed to modern education and holistic student development under the Sharnbasveshwar Vidya Vardhak Sangha.",
+    'sharana basaveshwara temple': "The Sharana Basaveshwara Temple is a prominent Hindu temple located in Kalaburagi, Karnataka, India. Dedicated to Sharana Basaveshwara, an 18th-century Hindu Lingayat saint and philosopher, it is renowned for its unique architecture, intricate carvings, and the annual Jaatra fair.",
+    'sharana basaveshwara': "Sharana Basaveshwara was an 18th-century Lingayat saint, philosopher, and social reformer. His shrine in Kalaburagi, Karnataka, continues to be a sacred pilgrimage site that emphasizes selfless service and education.",
+    'elon musk':"Elon Musk is a business magnate and engineer. He leads Tesla and SpaceX, founded xAI, and owns X, formerly Twitter.",
+    'bill gates':"Bill Gates co-founded Microsoft and now focuses on philanthropy through the Gates Foundation.",
+    'steve jobs':"Steve Jobs co-founded Apple and helped drive the personal computer, iPhone, and modern tech design. He died in 2011.",
+    'mark zuckerberg':"Mark Zuckerberg co-founded Facebook, now Meta.",
+    'jeff bezos':"Jeff Bezos founded Amazon and leads Blue Origin.",
+    'albert einstein':"Albert Einstein was a theoretical physicist best known for the theory of relativity and E = mc².",
+    'mahatma gandhi':"Mahatma Gandhi led India's independence movement through nonviolent resistance.",
+    'marie curie':"Marie Curie pioneered research on radioactivity and won Nobel Prizes in two sciences.",
+    'sundar pichai':"Sundar Pichai is the CEO of Google and Alphabet.",
+    'sam altman':"Sam Altman is the CEO of OpenAI.",
+    'barack obama':"Barack Obama was the 44th President of the United States.",
+    'abraham lincoln':"Abraham Lincoln was the 16th President of the United States."
+  };
+
+  function safeMath(expr){
+    const c = expr.replace(/plus/g,'+').replace(/minus/g,'-')
+      .replace(/times|multiplied by/g,'*').replace(/divided by/g,'/').replace(/x/g,'*');
+    const s = c.replace(/[^0-9+\-*/.()\s]/g,'');
+    if(!s.trim() || !/[0-9]/.test(s)) return null;
+    try{
+      const r = Function('"use strict"; return ('+s+')')();
+      return (typeof r==='number' && isFinite(r)) ? r : null;
+    }catch(e){ return null; }
+  }
+
+  function localRespond(raw){
+    const t = raw.trim().toLowerCase();
+    if(!t) return "I didn't catch that.";
+    if(/what makes you different|why are you different|how are you different|not like (siri|alexa|google)/.test(t)) return DIFFERENT;
+    if(/^(hi|hello|hellow|hey|argus)\b/.test(t) && t.length<24) return "Lookout here. What should I watch, explain, or remember?";
+    if(/time/.test(t) && /(what|current|now)/.test(t)) return "The clock says " + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) + ".";
+    if(/date|what day/.test(t)) return "Today is " + new Date().toLocaleDateString([],{weekday:'long',month:'long',day:'numeric'}) + ".";
+    if(/joke/.test(t)) return [
+      "I have many watch-dots and still lose my pencil.",
+      "Other assistants sell you speakers. I just stare at homework with you.",
+      "I never blink during a focus timer. You can, though."
+    ][Math.floor(Math.random()*3)];
+    if(/flip a coin/.test(t)) return Math.random()<0.5?"Heads.":"Tails.";
+    if(/roll.*(dice|die)/.test(t)) return "You rolled a " + (Math.floor(Math.random()*6)+1) + ".";
+    if(/introduce yourself|tell me about yourself|who made you|who created you|who developed you|who are your creators|who are you/.test(t))
+      return "Lookout here. I am Argus, a student voice helper built by Ruthvik, Adarsh, and Sangamesh. I keep watch, open pages, explain simply, quiz you, and hold notes on this device.";
+    if(/what are you/.test(t)) return "I'm Argus Lookout. I watch, remind, and teach. I am not a store speaker.";
+    if(/what can you do|help/.test(t)) return "Say Argus, then try: start a 25 minute focus; explain gravity simply; quiz me on magnets; remember my homework is science; biography of Marie Curie; tell me the news.";
+
+    const mem = t.match(/^(?:remember|note|note down|don't let me forget)\s+(?:that\s+)?(.+)/i);
+    if(mem) return {note: mem[1].replace(/[.?!]+$/,'').trim()};
+    if(/what did i (ask you to )?remember|show (my )?notes|lookout notes|my notes/.test(t)){
+      const notes = loadNotes();
+      if(!notes.length) return "The lookout board is empty. Say remember, then the thing I should keep.";
+      return "On the board: " + notes.slice(0,5).join('. Next: ');
+    }
+    if(/forget (my )?notes|clear notes/.test(t)){ saveNotes([]); renderNotes(); return "Lookout board cleared."; }
+    if(/^(pause|hold)\s+(the\s+)?(focus|timer|watch)/.test(t) || t === 'pause'){
+      if(pauseFocus()) return focusLabel();
+      if(state.focusPaused) return 'Focus is already paused.';
+      return 'No focus watch is running.';
+    }
+    if(/^(resume|continue|unpause)\s+(the\s+)?(focus|timer|watch)/.test(t) || t === 'resume'){
+      if(resumeFocus()) return focusLabel();
+      return 'Nothing to resume.';
+    }
+    if(/^(stop|end|cancel)\s+(the\s+)?(focus|timer|watch)/.test(t)){ stopFocus(false); return "Focus watch stopped."; }
+    if(/how much time|time left|focus left/.test(t) && focusActive()) return focusLabel();
+    const wordMins = {five:5,ten:10,fifteen:15,twenty:20,'twenty five':25,'twenty-five':25,thirty:30,forty:40,fortyfive:45,'forty five':45,'forty-five':45,sixty:60,hour:60};
+    let focMins = null;
+    const a = t.match(/(\d+|five|ten|fifteen|twenty five|twenty-five|twenty|thirty|forty-five|forty five|fortyfive|forty|sixty|hour)\s*(?:minute|min|mins|minutes)\s*(focus|timer|pomodoro|watch)/);
+    const b = t.match(/(focus|timer|pomodoro|watch)\s*(?:for\s+|of\s+|to\s+)?(\d+|five|ten|fifteen|twenty five|twenty-five|twenty|thirty|forty-five|forty five|fortyfive|forty|sixty|hour)\s*(?:minute|min|mins|minutes)?/);
+    const c = t.match(/(?:start|begin|set)?\s*(?:a\s+)?(\d+|five|ten|fifteen|twenty five|twenty-five|twenty|thirty|forty-five|forty five|fortyfive|forty|sixty)?\s*(?:minute|min|mins|minutes)?\s*(focus|timer|pomodoro)/);
+    const hit = a || b || c;
+    if(hit){
+      const raw = (a && a[1]) || (b && b[2]) || (c && c[1]);
+      focMins = parseInt(raw,10) || wordMins[raw] || readFocusMins();
+      return {focus: focMins};
+    }
+    if(/^(start|begin)\s+(focus|timer|watch)$/.test(t) || t === 'focus' || t === 'start focus'){ return {focus: readFocusMins()}; }
+
+    const keys = Object.keys(KNOWLEDGE);
+    for(const key of keys){ if(t.includes(key)){ return KNOWLEDGE[key]; } }
+
+    const math = safeMath(t.replace(/what('| i)?s|calculate|compute|equals?/g,''));
+    if(math !== null && /[0-9]/.test(t)) return "That comes to " + math + ".";
+    if(/thank/.test(t)) return "Always watching.";
+    return null;
+  }
+
+  // =================================================================
+  //  ONLINE LOOKUP
+  // =================================================================
+  async function wikiSummary(title){
+    try{
+      const r = await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(title) + '?redirect=true');
+      if(!r.ok) return null;
+      const j = await r.json();
+      if(j && j.extract && j.type !== 'disambiguation'){
+        return { extract:j.extract, url:(j.content_urls && j.content_urls.desktop && j.content_urls.desktop.page) || ('https://en.wikipedia.org/wiki/'+encodeURIComponent(j.title)) };
+      }
+    }catch(e){}
+    return null;
+  }
+  async function wikiSearch(q){
+    try{
+      const r = await fetch('https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch='+encodeURIComponent(q)+'&format=json&origin=*&srlimit=1');
+      if(!r.ok) return null;
+      const j = await r.json();
+      const hit = j.query && j.query.search && j.query.search[0];
+      return hit ? wikiSummary(hit.title) : null;
+    }catch(e){ return null; }
+  }
+  async function ddg(q){
+    try{
+      const r = await fetch('https://api.duckduckgo.com/?q='+encodeURIComponent(q)+'&format=json&no_html=1&skip_disambig=1');
+      if(!r.ok) return null;
+      const j = await r.json();
+      if(j.AbstractText) return { extract:j.AbstractText, url:j.AbstractURL||'' };
+      if(j.RelatedTopics && j.RelatedTopics[0] && j.RelatedTopics[0].Text)
+        return { extract:j.RelatedTopics[0].Text, url:j.RelatedTopics[0].FirstURL||'' };
+    }catch(e){}
+    return null;
+  }
+  function cleanSubject(t){
+    return t.replace(/^(who|what|where|when|why|how)\s+(is|was|are|were|does|do|did)\s+/i,'')
+      .replace(/^(tell me about|search for|look up|google|find|search|explain|quiz me on)\s+/i,'')
+      .replace(/^(tell me |give me |read |show me )?(the )?(biography|biograph|bio|life story) (of|about)\s+/i,'')
+      .replace(/\s+simply$/i,'')
+      .replace(/\?+$/,'').replace(/[.!,]+$/,'').trim();
+  }
+
+  function wantsBiography(text){
+    const t = text.trim().toLowerCase();
+    if(/who (are you|made you|created you|developed you)/.test(t)) return false;
+    if(/tell me about yourself/.test(t)) return false;
+    if(/^(who(?:'s| is| was))\s+/.test(t)) return true;
+    if(/\b(biography|biograph|life story)\b/.test(t)) return true;
+    if(/^(tell me about|tell me the story of)\s+/.test(t)) return true;
+    return false;
+  }
+  function googleBioUrl(subject){ return 'https://www.google.com/search?q=' + encodeURIComponent(subject + ' biography'); }
+  function wikiPageUrl(subject){ return 'https://en.wikipedia.org/wiki/' + encodeURIComponent(subject.replace(/\s+/g,'_')); }
+
+  async function tellBiography(text){
+    const subject = cleanSubject(text) || text.trim();
+    if(!subject){ speak("Whose biography should I look up?"); return; }
+    state.busy = true;
+    setState('thinking');
+    statusText.textContent = 'Opening Wikipedia, then Google…';
+    try{
+      let res = await lookup(subject);
+      const wikiUrl = (res && res.url) ? res.url : wikiPageUrl(subject);
+      const gUrl = googleBioUrl(subject);
+
+      const wikiOpened = openExternal(wikiUrl);
+      addLogLink('Wikipedia: ' + subject, wikiUrl);
+      showOpenAction(subject + ' on Wikipedia', wikiUrl);
+
+      // Google is the *second* tab; if popups are blocked, we just surface the button.
+      setTimeout(() => {
+        const googleOpened = openExternal(gUrl);
+        addLogLink('Google biography: ' + subject, gUrl);
+        if(!googleOpened) showOpenAction(subject + ' on Google', gUrl);
+      }, 700);
+
+      if(res && res.extract){
+        let s = res.extract;
+        if(s.length > 500) s = s.slice(0,497).trim() + '…';
+        speak((wikiOpened ? 'I opened Wikipedia, then Google, for ' : 'Tap Open for ') + subject + '. ' + s);
+      } else {
+        speak((wikiOpened ? 'I opened Wikipedia, then a Google biography search, for ' : 'Tap Open for ') + subject + '.');
+      }
+    }catch(e){
+      const gUrl = googleBioUrl(subject);
+      openExternal(wikiPageUrl(subject));
+      showOpenAction(subject + ' on Wikipedia', wikiPageUrl(subject));
+      setTimeout(() => { openExternal(gUrl); showOpenAction(subject + ' on Google', gUrl); }, 700);
+      speak('I sent Wikipedia and Google to look up ' + subject + '.');
+    }
+  }
+  async function lookup(text){
+    const subject = cleanSubject(text);
+    if(!subject) return null;
+    let w = await wikiSummary(subject);
+    if(w && w.extract) return w;
+    w = await wikiSearch(subject);
+    if(w && w.extract) return w;
+    const d = await ddg(text);
+    if(d && d.extract) return d;
+    return null;
+  }
+
+  // =================================================================
+  //  NEWS
+  // =================================================================
+  function wantsNews(text){
+    const t = text.trim().toLowerCase().replace(/[.!?]+$/,'');
+    if(/^(news|headlines|latest news|today'?s news|current events)$/.test(t)) return true;
+    return /\b(news|headlines|current events)\b/.test(t);
+  }
+  function newsFeedUrl(text){
+    const t = text.toLowerCase();
+    if(/\bindia\b|\bkarnataka\b|\bkalaburagi\b|\bgulbarga\b/.test(t)) return 'https://feeds.bbci.co.uk/news/world/asia/india/rss.xml';
+    if(/\bscience\b|\bspace\b/.test(t)) return 'https://feeds.bbci.co.uk/news/science_and_environment/rss.xml';
+    if(/\btech|\btechnology\b/.test(t)) return 'https://feeds.bbci.co.uk/news/technology/rss.xml';
+    if(/\bsport/.test(t)) return 'https://feeds.bbci.co.uk/sport/rss.xml';
+    return 'https://feeds.bbci.co.uk/news/rss.xml';
+  }
+  function stripTags(s){
+    return String(s||'').replace(/<[^>]+>/g,' ').replace(/&amp;/g,'&').replace(/&nbsp;/g,' ')
+      .replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>')
+      .replace(/\s+/g,' ').trim();
+  }
+  function parseRssItems(xmlText){
+    const out = [];
+    const blocks = String(xmlText||'').split(/<item[\s>]/i).slice(1);
+    for(const block of blocks){
+      const title = stripTags((block.match(/<title[^>]*>([\s\S]*?)<\/title>/i)||[])[1]||'');
+      const link = stripTags((block.match(/<link[^>]*>([\s\S]*?)<\/link>/i)||[])[1]||'');
+      if(title) out.push({ title, url: link });
+      if(out.length >= 5) break;
+    }
+    return out;
+  }
+  async function fetchNews(text){
+    const rss = newsFeedUrl(text);
+    try{
+      const r = await fetch('https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(rss));
+      if(r.ok){
+        const j = await r.json();
+        if(j && j.status === 'ok' && j.items && j.items.length){
+          return j.items.slice(0,5).map(item => ({ title: stripTags(item.title), url: item.link || item.url || '' })).filter(x => x.title);
+        }
+      }
+    }catch(e){}
+    try{
+      const r = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(rss));
+      if(r.ok){ const items = parseRssItems(await r.text()); if(items.length) return items; }
+    }catch(e){}
+    return null;
+  }
+  async function tellNews(text){
+    state.busy = true;
+    setState('thinking');
+    statusText.textContent = 'Checking the news…';
+    try{
+      const items = await fetchNews(text);
+      if(items && items.length){
+        items.forEach((item, i) => { if(item.url) addLogLink('Story ' + (i+1), item.url); });
+        const spoken = 'Here are the latest headlines. ' + items.map((item, i) => (i+1) + '. ' + item.title).join(' ');
+        speak(spoken);
+      } else {
+        const url = 'https://news.google.com';
+        const ok = openExternal(url);
+        addLogLink('Google News', url);
+        showOpenAction('Google News', url);
+        speak(ok ? 'I opened Google News for you.' : 'Tap Open Google News to continue.');
+      }
+    }catch(e){ speak('I had trouble getting the news just now. Please try again.'); }
+  }
+
+  // =================================================================
+  //  MAIN HANDLER
+  // =================================================================
+  // =================================================================
+  //  CAMERA COMMANDS
+  // =================================================================
+  function isCameraCommand(text){
+    const s = text.trim().toLowerCase()
+      .replace(/^(?:hey\s+)?argus[,:;\s-]+/, '')
+      .replace(/[.?!]+$/,'').replace(/\s+please$/,'').trim();
+    return /^(?:open|launch|start|show|use|turn on)\s+(?:the\s+)?camera$/.test(s)
+      || /^(?:take|capture)\s+(?:a\s+)?(?:photo|picture|pic)$/.test(s)
+      || /^camera$/.test(s);
+  }
+
+  function cameraMessageSet(html){
+    cameraMessage.innerHTML = html;
+  }
+
+  function stopCameraStream(){
+    if(cameraTimer){ clearTimeout(cameraTimer); cameraTimer=null; }
+    if(cameraStream){ cameraStream.getTracks().forEach(t=>t.stop()); cameraStream=null; }
+    cameraVideo.srcObject = null;
+    cameraBusy = false;
+  }
+
+  function closeCamera(){
+    stopCameraStream();
+    cameraModal.classList.remove('show');
+    cameraModal.setAttribute('aria-hidden','true');
+    cameraVideo.style.display='block'; cameraPhoto.style.display='none'; cameraCanvas.style.display='none';
+    cameraCapture.style.display='inline-block'; cameraCapture.disabled=true;
+    cameraRetake.style.display='none'; cameraSave.style.display='none';
+    cameraCount.classList.remove('show'); cameraFlash.classList.remove('fire');
+  }
+
+  async function openCamera(){
+    if(cameraModal.classList.contains('show')) return;
+    if(state.cmdListening && state.recognition){ try{state.recognition.stop();}catch(e){} }
+    cameraModal.classList.add('show');
+    cameraModal.setAttribute('aria-hidden','false');
+    cameraMessageSet('<strong>Starting camera…</strong><br>Checking this device for a usable camera.');
+    cameraCapture.disabled=true;
+    cameraRetake.style.display='none'; cameraSave.style.display='none';
+    cameraVideo.style.display='block'; cameraPhoto.style.display='none'; cameraCanvas.style.display='none';
+    try{
+      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+        throw new DOMException('Camera API unavailable','NotFoundError');
+      }
+      cameraStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
+      cameraVideo.srcObject = cameraStream;
+      await cameraVideo.play();
+      cameraCapture.disabled=false;
+      cameraMessageSet('<strong>Camera ready ✨</strong><br>Press <b>Take Photo</b> — ARGUS will count down from 5.');
+    }catch(err){
+      stopCameraStream();
+      cameraMessageSet('<strong>📷 No camera access</strong><br>This device has no available camera, or camera permission was blocked.');
+      cameraCapture.disabled=true;
+      statusText.textContent='No camera access';
+    }
+  }
+
+  function takeCameraPhoto(){
+    if(cameraBusy || !cameraStream || !cameraVideo.videoWidth) return;
+    cameraBusy=true; cameraCapture.disabled=true; cameraRetake.style.display='none'; cameraSave.style.display='none';
+    let n=5;
+    cameraCount.textContent=n; cameraCount.classList.add('show');
+    cameraMessageSet('<strong>Get ready…</strong><br>Photo in <b>5 seconds</b>.');
+    const tick=()=>{
+      n--;
+      if(n>0){
+        cameraCount.classList.remove('show'); void cameraCount.offsetWidth; cameraCount.textContent=n; cameraCount.classList.add('show');
+        cameraMessageSet('<strong>Hold still…</strong><br>Photo in <b>'+n+' seconds</b>.');
+        cameraTimer=setTimeout(tick,1000); return;
+      }
+      cameraCount.classList.remove('show');
+      cameraFlash.classList.remove('fire'); void cameraFlash.offsetWidth; cameraFlash.classList.add('fire');
+      cameraCanvas.width=cameraVideo.videoWidth; cameraCanvas.height=cameraVideo.videoHeight;
+      const ctx=cameraCanvas.getContext('2d');
+      ctx.drawImage(cameraVideo,0,0,cameraCanvas.width,cameraCanvas.height);
+      const data=cameraCanvas.toDataURL('image/jpeg',0.92);
+      cameraPhoto.src=data; cameraPhoto.style.display='block'; cameraVideo.style.display='none'; cameraCanvas.style.display='none';
+      cameraRetake.style.display='inline-block'; cameraSave.style.display='inline-block'; cameraBusy=false;
+      cameraMessageSet('<strong>📸 Photo captured!</strong><br>Your photo is ready.');
+      cameraSave.onclick=()=>{ const a=document.createElement('a'); a.href=data; a.download='ARGUS-photo-'+new Date().toISOString().replace(/[:.]/g,'-')+'.jpg'; a.click(); };
+    };
+    cameraTimer=setTimeout(tick,1000);
+  }
+
+  function retakeCameraPhoto(){
+    cameraPhoto.style.display='none'; cameraVideo.style.display='block'; cameraRetake.style.display='none'; cameraSave.style.display='none';
+    cameraMessageSet('<strong>Camera ready ✨</strong><br>Press <b>Take Photo</b> for another 5-second countdown.');
+    cameraCapture.disabled=false;
+  }
+
+  cameraCapture.addEventListener('click',takeCameraPhoto);
+  cameraRetake.addEventListener('click',retakeCameraPhoto);
+  cameraClose.addEventListener('click',closeCamera);
+  cameraModal.addEventListener('click',e=>{if(e.target===cameraModal) closeCamera();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape' && cameraModal.classList.contains('show')) closeCamera();});
+
+  function handleInput(text){
+    if(!text.trim() || state.busy) return;
+    addLog('You', text);
+    if(isCameraCommand(text)){
+      hideOpenAction();
+      setState('thinking');
+      statusText.textContent='Opening camera…';
+      speak('Opening the camera. Get ready.');
+      openCamera();
+      return;
+    }
+    interimText.textContent = '';
+    hideOpenAction();
+    state.simpleMode = /\bsimply\b|\blike i(?:'| a)?m \d+\b|in simple words|plain words/.test(text.toLowerCase());
+    const quiz = /^(quiz|test) me(?: on)?\s+(.+)/i.exec(text.trim()) || /^give me a quiz (?:on|about)\s+(.+)/i.exec(text.trim());
+
+    const closeMatch = text.trim().replace(/[.?!]+$/,'').match(/^(?:close|shut|exit)\s+(?:the\s+)?(.+?)(?:\s+tab)?$/i);
+    if(closeMatch){
+      const target = closeMatch[1].trim().replace(/^['"]|['"]$/g,'');
+      setState('thinking');
+      speak(closeExternal(target));
+      return;
+    }
+
+    const song = matchPlay(text);
+    if(song){ setState('thinking'); playSongNow(song); return; }
+
+    // Smart school routing: "open school", "open any school",
+    // "open appp public school", "launch APS school in Kalaburagi", etc.
+    const school = matchSchoolOpen(text);
+    if(school){ setState('thinking'); openSiteNow(school); return; }
+
+    const site = matchOpen(text);
+    if(site){ setState('thinking'); openSiteNow(site); return; }
+
+    if(wantsNews(text)){ tellNews(text); return; }
+
+    const local = localRespond(text);
+    if(local && typeof local === 'object' && local.note){ rememberNote(local.note); return; }
+    if(local && typeof local === 'object' && local.focus){ startFocus(local.focus); return; }
+    if(typeof local === 'string'){
+      setState('thinking');
+      statusText.textContent = 'Watching…';
+      setTimeout(() => speak(local), 160);
+      return;
+    }
+
+    if(wantsBiography(text) && !state.simpleMode && !quiz){ tellBiography(text); return; }
+
+    state.busy = true;
+    setState('thinking');
+    statusText.textContent = quiz ? 'Building a quiz…' : (state.simpleMode ? 'Making it simple…' : 'Searching the watchtower…');
+    lookup(text).then(res => {
+      if(res && res.extract){
+        let s = res.extract;
+        if(state.simpleMode) s = simplifyText(s);
+        if(s.length > 420) s = s.slice(0,417).trim() + '…';
+        if(res.url) addLogLink('Source', res.url);
+        if(quiz) speak(makeQuiz(cleanSubject(text) || res.title || 'this topic', s));
+        else speak(state.simpleMode ? ('Simple watch: ' + s) : s);
+      } else {
+        const q = cleanSubject(text) || text;
+        const url = 'https://www.google.com/search?q=' + encodeURIComponent(q);
+        const ok = openExternal(url);
+        addLogLink('Google search', url);
+        showOpenAction(q, url);
+        speak(ok ? ("No short briefing found. I opened a search for " + q + ".") : ("Tap Open " + q + " to search Google."));
+      }
+    }).catch(() => {
+      state.busy = false; setState(focusActive() ? 'focus' : 'idle');
+      speak("The watchtower search failed.");
+    });
+  }
+
+  sendBtn.addEventListener('click', () => {
+    const v = textInput.value; if(!v.trim()) return;
+    textInput.value = '';
+    handleInput(v);
+  });
+  textInput.addEventListener('keydown', e => { if(e.key === 'Enter'){ sendBtn.click(); } });
+
+  // =================================================================
+  //  MIC PERMISSION + SPEECH RECOGNITION
+  // =================================================================
+  function ensureMic(){
+    if(state.micReady) return Promise.resolve(true);
+    const secure = window.isSecureContext || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    if(!secure){
+      showHint('Microphone access is blocked on many file:// pages. Run Argus from HTTPS or localhost, then allow the microphone.', true);
+      statusText.textContent = 'Open on localhost/HTTPS';
+      return Promise.resolve(false);
+    }
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      showHint('This browser does not expose microphone access. Try the latest Chrome or Edge.', true);
+      return Promise.resolve(false);
+    }
+    return navigator.mediaDevices.getUserMedia({audio:true})
+      .then(stream => {
+        stream.getTracks().forEach(t => t.stop());
+        state.micReady = true;
+        hideHint();
+        return true;
+      })
+      .catch(err => {
+        let msg = 'Microphone access failed. ';
+        if(err && (err.name === 'NotAllowedError' || err.name === 'SecurityError')) msg += 'Allow the microphone in the address bar, then try again.';
+        else if(err && err.name === 'NotFoundError') msg += 'No microphone was detected.';
+        else if(err && err.name === 'NotReadableError') msg += 'The microphone may be in use by another app.';
+        else msg += 'Check microphone permissions and try again.';
+        showHint(msg, true);
+        statusText.textContent = 'Mic unavailable';
+        return false;
+      });
+  }
+
+  function safeStartRecognition(rec){
+    if(!rec) return false;
+    if(state.cmdListening || state.wakeListening) return false;
+    try{
+      rec.start();
+      return true;
+    }catch(err){
+      console.error('Argus recognition start error:', err);
+      state.cmdListening = false;
+      micBtn.dataset.active = 'false';
+      showHint('Voice could not start. Allow microphone access and try again. If Argus is opened as a file, use localhost or HTTPS.', true);
+      statusText.textContent = 'Voice could not start';
+      return false;
+    }
+  }
+
+  function startOneShot(){
+    if(!state.srSupported){
+      showHint('Speech recognition is not supported in this browser. Try the latest Chrome or Edge, or type your command below.', true);
+      statusText.textContent = 'Voice unavailable';
+      return;
+    }
+    if(state.cmdListening) return;
+    ensureMic().then(ok => {
+      if(!ok) return;
+      stopWake();
+      if(!state.recognition) state.recognition = buildRecognizer();
+      setTimeout(() => safeStartRecognition(state.recognition), 10);
+    });
+  }
+  micBtn.addEventListener('click', () => {
+    if(state.cmdListening){ if(state.recognition) try{ state.recognition.stop(); }catch(e){} }
+    else { startOneShot(); }
+  });
+  const voiceOrb = document.querySelector('.voice-orb');
+  if(voiceOrb){
+    voiceOrb.style.cursor = 'pointer';
+    voiceOrb.addEventListener('click', () => { if(!state.cmdListening) startOneShot(); });
+  }
+
+  function buildRecognizer(){
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!SR) return null;
+    const rec = new SR();
+    rec.continuous = false;
+    rec.interimResults = true;
+    // Multiple alternatives help when the microphone mishears a school name.
+    rec.maxAlternatives = 5;
+    rec.lang = 'en-IN';
+    rec.onstart = () => {
+      state.cmdListening = true;
+      micBtn.dataset.active = 'true';
+      setState('listening');
+      statusText.textContent = 'Listening…';
+      hideHint();
+    };
+    rec.onresult = (e) => {
+      let interim = '', final = '';
+      for(let i=e.resultIndex; i<e.results.length; i++){
+        const tr = e.results[i][0].transcript;
+        if(e.results[i].isFinal) final += tr; else interim += tr;
+      }
+      interimText.textContent = interim;
+      if(final){
+        const cleaned = stripWake(final);
+        let best = cleaned || final;
+
+        // Prefer an alternative that resolves to the configured school.
+        for(let i=e.resultIndex; i<e.results.length; i++){
+          const result = e.results[i];
+          if(!result.isFinal) continue;
+          for(let a=0; a<result.length; a++){
+            const candidate = stripWake(result[a].transcript) || result[a].transcript;
+            if(matchSchoolOpen(candidate)){
+              best = candidate;
+              break;
+            }
+          }
+        }
+        handleInput(best);
+      }
+    };
+    rec.onerror = (e) => {
+      state.cmdListening = false;
+      micBtn.dataset.active = 'false';
+      const code = e && e.error ? e.error : 'unknown';
+      if(code === 'not-allowed' || code === 'service-not-allowed'){
+        showHint('Microphone was blocked. Allow it in the address bar and try again.', true);
+        statusText.textContent = 'Mic blocked';
+      }else if(code === 'no-speech'){
+        statusText.textContent = 'I did not hear anything. Try again.';
+      }else if(code === 'network'){
+        showHint('Speech recognition needs an internet connection in this browser.', true);
+        statusText.textContent = 'Network error';
+      }else if(code === 'audio-capture'){
+        showHint('The microphone could not be accessed. Check that it is connected and not being used by another app.', true);
+        statusText.textContent = 'Mic unavailable';
+      }else if(code !== 'aborted'){
+        showHint('Voice error: ' + code + '. You can still type commands below.', true);
+        statusText.textContent = 'Voice error';
+      }
+    };
+    rec.onend = () => {
+      state.cmdListening = false;
+      micBtn.dataset.active = 'false';
+      interimText.textContent = '';
+      if(app.dataset.state === 'listening'){
+        setState(focusActive() ? 'focus' : 'idle');
+        statusText.textContent = idleStatus();
+      }
+      if(state.wakeMode && !state.busy) setTimeout(startWake, 200);
+    };
+    return rec;
+  }
+
+  // ---------- Wake word: "Argus" (Hello still works) ----------
+  function wakeIndex(text){
+    const t = text.toLowerCase();
+    const m = t.match(/\b(?:hey\s+)?(?:argus|argos|hello|hellow|hallo|hullo|helo|halo)\b/);
+    return m ? { len:m[0].length, idx:m.index } : null;
+  }
+  function stripWake(text){
+    const w = wakeIndex(text);
+    if(!w) return text;
+    return text.slice(w.idx + w.len).replace(/^[\s,._-]+/, '').trim();
+  }
+
+  function startWake(){
+    if(!state.wakeMode || state.busy || state.cmdListening || state.wakeListening) return;
+    ensureMic().then(ok => {
+      if(!ok || !state.wakeMode) return;
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if(!SR) return;
+      state.wakeRec = new SR();
+      state.wakeRec.continuous = true;
+      state.wakeRec.interimResults = true;
+      state.wakeRec.lang = 'en-US';
+      state.wakeRec.onstart = () => {
+        state.wakeListening = true;
+        if(!focusActive()) statusText.textContent = 'On watch. Say “Argus”…';
+      };
+      state.wakeRec.onresult = (e) => {
+        for(let i = e.resultIndex; i < e.results.length; i++){
+          const transcript = e.results[i][0].transcript;
+          const w = wakeIndex(transcript);
+          if(w){
+            stopWake();
+            const command = stripWake(transcript);
+            if(command){
+              handleInput(command);
+            } else {
+              // Treat a bare wake word (including “hello”) as an invitation
+              // to capture the next spoken request, then return to wake standby.
+              speak("Lookout here. What should I watch, explain, or remember?", () => {
+                if(state.wakeMode && !state.cmdListening) {
+                  // Start the command recognizer after the greeting has fully
+                  // finished; startWake is intentionally suppressed by speak().
+                  setTimeout(() => {
+                    if(state.wakeMode && !state.cmdListening) startOneShot();
+                  }, 80);
+                }
+              });
+            }
+            break;
+          }
+        }
+      };
+      state.wakeRec.onerror = (e) => {
+        state.wakeListening = false;
+        if(e.error !== 'aborted' && state.wakeMode){ setTimeout(startWake, 500); }
+      };
+      state.wakeRec.onend = () => {
+        state.wakeListening = false;
+        if(state.wakeMode && !state.busy && !state.cmdListening){ setTimeout(startWake, 200); }
+      };
+      try{ state.wakeRec.start(); } catch(err){
+        console.error('Argus wake-word start error:', err);
+        state.wakeListening = false;
+        showHint('Wake word could not start. Allow microphone access and use localhost or HTTPS.', true);
+      }
+    });
+  }
+  function stopWake(){
+    if(state.wakeRec){ try{ state.wakeRec.stop(); }catch(e){} state.wakeRec = null; }
+    state.wakeListening = false;
+  }
+
+  // ---------- boot ----------
+  renderNotes();
+  statusText.textContent = idleStatus();
+  showVoiceReadyStatus();
+  if('speechSynthesis' in window){
+    try{ window.speechSynthesis.getVoices(); }catch(e){}
+    window.speechSynthesis.onvoiceschanged = () => { try{ window.speechSynthesis.getVoices(); }catch(e){} };
+  }
+})();
+</script>
+</body>
+</html>
